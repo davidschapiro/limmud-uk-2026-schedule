@@ -276,14 +276,28 @@ function getTheme() { try { return localStorage.getItem(LS_THEME) || "auto"; } c
 applyTheme(getTheme());
 
 /* ---------- favourites: local cache + /api/me ---------- */
+const LS_PENDING = "limmud2026-pending";   // "1" while local stars haven't reached the server yet
 function loadLocal() { try { const a = JSON.parse(localStorage.getItem(LS_KEY) || "[]"); if (Array.isArray(a)) favs = new Set(a.map(String)); } catch (e) {} }
 function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify([...favs])); } catch (e) {} }
+function setPending(on) { try { if (on) localStorage.setItem(LS_PENDING, "1"); else localStorage.removeItem(LS_PENDING); } catch (e) {} }
+function isPending() { try { return localStorage.getItem(LS_PENDING) === "1"; } catch (e) { return false; } }
 
+let sessionExpired = false;
 function setStatus(kind, text) { const b = $("mebtn"); b.classList.toggle("on", kind === "on"); b.classList.toggle("err", kind === "err"); b.querySelector("span").textContent = text; }
-function statusOk() { setStatus("on", me ? `${me.name} · synced` : "Synced"); }
+function statusOk() { sessionExpired = false; setStatus("on", me ? `${me.name} · synced` : "Synced"); }
+function statusFail(e) {
+  if (e && e.expired) { sessionExpired = true; setStatus("err", "Session expired · tap to log in"); }
+  else setStatus("err", "Offline · saved on this device");
+}
 
+// Cloudflare Access answers an expired login with a redirect to its login page.
+// redirect: "manual" turns that into an opaque response we can recognise instead of a CORS failure.
 async function api(method, path, body) {
-  const r = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+  let r;
+  try {
+    r = await fetch(path, { method, redirect: "manual", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
+  } catch (err) { const e = new Error("network"); e.offline = true; throw e; }
+  if (r.type === "opaqueredirect" || r.status === 401 || (r.status >= 300 && r.status < 400)) { const e = new Error("expired"); e.expired = true; throw e; }
   if (!r.ok) { const e = new Error("http " + r.status); e.status = r.status; throw e; }
   return r.json();
 }
@@ -291,13 +305,13 @@ async function api(method, path, body) {
 let dirty = false, writing = false, writeTimer = null;
 function scheduleSave() { if (!me) return; dirty = true; clearTimeout(writeTimer); writeTimer = setTimeout(flushSave, 800); }
 async function flushSave() {
-  if (!me || writing || !dirty) return;
+  if (!me || writing || !dirty || sessionExpired) return;
   writing = true; dirty = false;
   setStatus("", "Saving…");
-  try { await api("PUT", "/api/me", { ids: [...favs] }); statusOk(); }
-  catch (e) { dirty = true; setStatus("err", "Offline · saved on this device"); }
+  try { await api("PUT", "/api/me", { ids: [...favs] }); if (!dirty) setPending(false); statusOk(); }
+  catch (e) { dirty = true; statusFail(e); }
   writing = false;
-  if (dirty && navigator.onLine) setTimeout(flushSave, 5000);
+  if (dirty && !sessionExpired && navigator.onLine) setTimeout(flushSave, 5000);
 }
 window.addEventListener("online", () => { if (dirty) flushSave(); });
 
@@ -305,13 +319,14 @@ async function loadMe() {
   try {
     const d = await api("GET", "/api/me");
     me = { email: d.email, name: d.name, share: d.share };
+    sessionExpired = false;
     const server = new Set((d.ids || []).map(String));
-    if (!server.size && favs.size) scheduleSave();        // first visit with local stars: upload them
+    if (isPending() || (!server.size && favs.size)) scheduleSave();   // local changes the server hasn't seen: upload them
     else if (!dirty && !writing) { favs = server; saveLocal(); }
     statusOk();
     return true;
   } catch (e) {
-    setStatus("err", e.status === 401 ? "Not signed in · saved on this device" : "Offline · saved on this device");
+    statusFail(e);
     return false;
   }
 }
@@ -337,7 +352,7 @@ setInterval(() => { if (document.visibilityState === "visible") { lastRefresh = 
 
 function toggleFav(id) {
   if (favs.has(id)) favs.delete(id); else favs.add(id);
-  saveLocal(); scheduleSave();
+  saveLocal(); setPending(true); scheduleSave();
   refreshFavUI(id);
 }
 
@@ -600,12 +615,12 @@ $("setform").addEventListener("submit", async (e) => {
     const name = $("set-name").value.trim() || me.name, share = $("set-share").checked;
     if (name !== me.name || share !== me.share) {
       try { const d = await api("PUT", "/api/me", { name, share }); me.name = d.name; me.share = d.share; statusOk(); toast("Settings saved"); }
-      catch (err) { toast("Couldn't save: check your connection and try again"); return; }
+      catch (err) { statusFail(err); toast(err.expired ? "Your login expired: close this and tap the button at the top to log in again" : "Couldn't save: check your connection and try again"); return; }
     }
   }
   $("settings").close();
 });
-$("mebtn").addEventListener("click", openSettings);
+$("mebtn").addEventListener("click", () => { if (sessionExpired) location.reload(); else openSettings(); });
 
 /* ---------- events ---------- */
 document.addEventListener("click", (e) => {

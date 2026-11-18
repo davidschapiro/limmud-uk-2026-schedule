@@ -1,0 +1,13 @@
+{
+  "name": "limmud-festival-2026",
+  "private": true,
+  "description": "Limmud Festival 2026 programme browser with shared favourites (Cloudflare Pages + KV + Access)",
+  "scripts": {
+    "dev": "wrangler pages dev public --kv FAVS --binding DEV_EMAIL=dev@example.com --port 8788",
+    "scrape": "python3 scripts/scrape.py"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "type": "module"
+}

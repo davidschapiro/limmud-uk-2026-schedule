@@ -81,7 +81,7 @@ main { max-width: 980px; margin: 0 auto; padding: 8px 16px 80px; }
 .chipbtn[aria-pressed="true"] { background: var(--gold-soft); border-color: var(--gold); }
 
 .slot { margin-top: 18px; }
-.slot-h { position: sticky; top: var(--hdr, 150px); z-index: 5; background: var(--bg); padding: 6px 0; display: flex; align-items: center; gap: 10px; }
+.slot-h { position: sticky; top: calc(var(--hdr, 150px) - 1px); z-index: 5; background: var(--bg); padding: 6px 0; display: flex; align-items: center; gap: 10px; }
 .slot-h time { font-family: var(--font-display); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
 .slot-h .cnt { color: var(--muted); font-size: 12px; }
 .slot-h .now { background: var(--accent); color: var(--bg); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -652,6 +652,8 @@ $("nowbtn").addEventListener("click", () => {
 window.addEventListener("hashchange", route);
 const setHdr = () => document.documentElement.style.setProperty("--hdr", $("top").offsetHeight + "px");
 window.addEventListener("resize", setHdr);
+if (window.ResizeObserver) new ResizeObserver(setHdr).observe($("top"));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(setHdr);
 
 async function copyList() {
   const list = DATA.sessions.filter(s => favs.has(s.id));

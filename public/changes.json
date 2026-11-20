@@ -1,6 +1,78 @@
 {
  "entries": [
   {
+   "at": "2026-11-20T11:35Z",
+   "added": [],
+   "removed": [],
+   "changed": [
+    {
+     "id": "17412",
+     "date": "2026-12-26",
+     "time": "19:00",
+     "title": "How to covertly join the Rabbanut",
+     "room": "Orange 11",
+     "changes": {
+      "desc": true
+     }
+    },
+    {
+     "id": "17663",
+     "date": "2026-12-27",
+     "time": "12:45",
+     "title": "The magic of Hasidic storytelling",
+     "room": "Red 2",
+     "changes": {
+      "desc": true
+     }
+    },
+    {
+     "id": "17606",
+     "date": "2026-12-27",
+     "time": "14:00",
+     "title": "Sephardi vs Ashkenazi: we're more similar than you think",
+     "room": "Blue 34",
+     "changes": {
+      "desc": true
+     }
+    },
+    {
+     "id": "17390",
+     "date": "2026-12-27",
+     "time": "16:30",
+     "title": "What do I say? Talking to children about the hard stuff",
+     "room": "Red 1",
+     "changes": {
+      "presenters": [
+       [
+        "Olivia Marks-Woldman",
+        "Anna Colton"
+       ],
+       [
+        "Robin Moss",
+        "Robbie Duschinsky",
+        "Olivia Marks-Woldman",
+        "Anna Colton",
+        "Jennifer Sandler"
+       ]
+      ]
+     }
+    },
+    {
+     "id": "17865",
+     "date": "2026-12-28",
+     "time": "15:15",
+     "title": "Coffee hour: meet the 2027 Limmud Festival chairs",
+     "room": "Bar",
+     "changes": {
+      "title": [
+       "Coffee hour: meet the 2027 festival chairs",
+       "Coffee hour: meet the 2027 Limmud Festival chairs"
+      ]
+     }
+    }
+   ]
+  },
+  {
    "at": "2026-11-19T11:37Z",
    "added": [
     {

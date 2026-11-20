@@ -248,6 +248,21 @@ dialog::backdrop { background: rgb(10 12 20 / .45); }
     </div>
   </form>
 </dialog>
+<dialog id="joindlg" aria-labelledby="join-title">
+  <form class="dlg" id="joinform" method="dialog">
+    <h2 id="join-title">Join the group</h2>
+    <p class="hint" style="margin:0"><span id="join-who"></span> To share stars with the others, enter the invite code from David, or open the invite link he sent you.</p>
+    <label class="f" for="join-code">Invite code
+      <input id="join-code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+    <p class="hint" id="join-msg" role="alert" style="color:var(--clash);margin:-6px 0 0"></p>
+    <p class="hint" style="margin:0">Until then you can browse and star sessions; they stay on this device.</p>
+    <div class="actions">
+      <button class="ghost" type="button" id="join-later">Not now</button>
+      <button class="primary" type="submit" id="join-go">Join</button>
+    </div>
+  </form>
+</dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -282,11 +297,12 @@ function saveLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify([...fav
 function setPending(on) { try { if (on) localStorage.setItem(LS_PENDING, "1"); else localStorage.removeItem(LS_PENDING); } catch (e) {} }
 function isPending() { try { return localStorage.getItem(LS_PENDING) === "1"; } catch (e) { return false; } }
 
-let sessionExpired = false;
+let sessionExpired = false, notInvited = false, notInvitedEmail = "";
 function setStatus(kind, text) { const b = $("mebtn"); b.classList.toggle("on", kind === "on"); b.classList.toggle("err", kind === "err"); b.querySelector("span").textContent = text; }
-function statusOk() { sessionExpired = false; setStatus("on", me ? `${me.name} · synced` : "Synced"); }
+function statusOk() { sessionExpired = false; notInvited = false; setStatus("on", me ? `${me.name} · synced` : "Synced"); }
 function statusFail(e) {
   if (e && e.expired) { sessionExpired = true; setStatus("err", "Session expired · tap to log in"); }
+  else if (e && e.notInvited) { notInvited = true; notInvitedEmail = e.email || ""; setStatus("err", "Not in the group yet · tap to join"); }
   else setStatus("err", "Offline · saved on this device");
 }
 
@@ -298,14 +314,19 @@ async function api(method, path, body) {
     r = await fetch(path, { method, redirect: "manual", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
   } catch (err) { const e = new Error("network"); e.offline = true; throw e; }
   if (r.type === "opaqueredirect" || r.status === 401 || (r.status >= 300 && r.status < 400)) { const e = new Error("expired"); e.expired = true; throw e; }
-  if (!r.ok) { const e = new Error("http " + r.status); e.status = r.status; throw e; }
+  if (!r.ok) {
+    const e = new Error("http " + r.status); e.status = r.status;
+    try { const d = await r.json(); e.code = d.error; e.email = d.email; } catch (x) {}
+    if (e.code === "not_invited") e.notInvited = true;
+    throw e;
+  }
   return r.json();
 }
 
 let dirty = false, writing = false, writeTimer = null;
 function scheduleSave() { if (!me) return; dirty = true; clearTimeout(writeTimer); writeTimer = setTimeout(flushSave, 800); }
 async function flushSave() {
-  if (!me || writing || !dirty || sessionExpired) return;
+  if (!me || writing || !dirty || sessionExpired || notInvited) return;
   writing = true; dirty = false;
   setStatus("", "Saving…");
   try { await api("PUT", "/api/me", { ids: [...favs] }); if (!dirty) setPending(false); statusOk(); }
@@ -620,7 +641,39 @@ $("setform").addEventListener("submit", async (e) => {
   }
   $("settings").close();
 });
-$("mebtn").addEventListener("click", () => { if (sessionExpired) location.reload(); else openSettings(); });
+$("mebtn").addEventListener("click", () => { if (sessionExpired) location.reload(); else if (notInvited) openJoin(); else openSettings(); });
+
+/* ---------- joining the group ---------- */
+function openJoin(msg) {
+  $("join-who").textContent = notInvitedEmail ? `You're logged in as ${notInvitedEmail}.` : "";
+  $("join-msg").textContent = msg || "";
+  if (!$("joindlg").open) $("joindlg").showModal();
+  setTimeout(() => $("join-code").focus(), 30);
+}
+async function joinWith(code) {
+  try { await api("POST", "/api/join", { code }); return { ok: true }; }
+  catch (e) { return { ok: false, e }; }
+}
+function joinError(e) {
+  if (e.code === "wrong_code") return "That code doesn't match. Check the link or message from David.";
+  if (e.code === "too_many_tries") return "Too many wrong codes. Try again in an hour.";
+  if (e.expired) return "Your login expired. Reload the page and log in again.";
+  return "Couldn't reach the server. Check your connection and try again.";
+}
+async function afterJoin() {
+  $("joindlg").open && $("joindlg").close();
+  if (await loadMe()) { await loadFriends(); rerenderKeepScroll(); toast("You're in. Welcome!"); }
+}
+$("joinform").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = $("join-code").value.trim();
+  if (!code) return;
+  $("join-go").disabled = true;
+  const r = await joinWith(code);
+  $("join-go").disabled = false;
+  if (r.ok) afterJoin(); else $("join-msg").textContent = joinError(r.e);
+});
+$("join-later").addEventListener("click", () => $("joindlg").close());
 
 /* ---------- events ---------- */
 document.addEventListener("click", (e) => {
@@ -665,7 +718,18 @@ async function copyList() {
 /* ---------- boot ---------- */
 async function boot() {
   loadLocal();
-  const mePromise = loadMe();
+  let joinPromise = Promise.resolve(null);
+  const jh = decodeURIComponent(location.hash.slice(1));
+  if (jh.startsWith("join-")) {
+    history.replaceState(null, "", location.pathname + location.search);
+    joinPromise = joinWith(jh.slice(5));
+  }
+  const mePromise = joinPromise.then(async (jr) => {
+    const ok = await loadMe();
+    if (jr && jr.ok && ok) toast("You're in. Welcome!");
+    if (notInvited) openJoin(jr && !jr.ok ? joinError(jr.e) : "");
+    return ok;
+  });
   try { const r = await fetch("data.json", { cache: "no-cache" }); if (!r.ok) throw new Error(r.status); DATA = await r.json(); }
   catch (e) { $("main").innerHTML = '<div class="loading">The programme data could not be loaded. Reload the page to try again.</div>'; return; }
   DAYS = DATA.days; P = DATA.presenters;

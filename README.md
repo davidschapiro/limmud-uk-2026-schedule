@@ -76,6 +76,11 @@ Without the link they see a "Join the group" box where they can type the code. 1
 Nothing to do if the repo's Actions are enabled. To refresh by hand: Actions → *Refresh programme* → Run workflow. Each change commits `public/data.json`, which redeploys the site.
 If the push fails with a permissions error: repo Settings → Actions → General → Workflow permissions → *Read and write*.
 
+## Install as an app
+The page has a web app manifest, icons (`public/icons/`, made by `scripts/make_icons.py`) and a service worker (`public/sw.js`).
+Android, ChromeOS and desktop Chrome/Edge show an "Add to home screen" button that triggers the install prompt; on iPhone the button explains the Share → Add to Home Screen steps.
+The service worker keeps the last programme readable offline. If the install button never appears on Android/Chrome, add a Cloudflare Access **Bypass** application for `/manifest.webmanifest` and `/icons/*` (nothing private is in them).
+
 ## Local development
 
 ```bash

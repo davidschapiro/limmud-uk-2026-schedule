@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Limmud Festival 2026 Programme</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#f4f5f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10131c" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Limmud 2026">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -175,6 +184,11 @@ dialog::backdrop { background: rgb(10 12 20 / .45); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
 .dlg .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .primary { border: 0; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
+.brand-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.installbtn { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.installbtn[hidden] { display: none; }
+.ios-steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; }
+.ios-steps svg { vertical-align: -3px; }
 .pill { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; white-space: nowrap; line-height: 1.6; }
 .pill.new { background: var(--accent); color: var(--bg); }
 .pill.moved { background: var(--gold-soft); color: var(--ink); border: 1px solid var(--gold); }
@@ -212,7 +226,10 @@ details.descedits summary { cursor: pointer; color: var(--muted); font-size: 14p
   <div class="top-inner">
     <div class="brand">
       <h1>Limmud Festival <span>2026</span></h1>
-      <button class="metabtn" id="mebtn" type="button" aria-haspopup="dialog"><i></i><span>Connecting…</span></button>
+      <div class="brand-actions">
+        <button class="metabtn installbtn" id="installbtn" type="button" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg><span>Add to home screen</span></button>
+        <button class="metabtn" id="mebtn" type="button" aria-haspopup="dialog"><i></i><span>Connecting…</span></button>
+      </div>
     </div>
     <div class="searchrow">
       <label class="search" for="q">
@@ -274,6 +291,18 @@ details.descedits summary { cursor: pointer; color: var(--muted); font-size: 14p
       <button class="ghost" type="button" id="join-later">Not now</button>
       <button class="primary" type="submit" id="join-go">Join</button>
     </div>
+  </form>
+</dialog>
+<dialog id="iosdlg" aria-labelledby="ios-title">
+  <form class="dlg" method="dialog">
+    <h2 id="ios-title">Add to home screen</h2>
+    <ol class="ios-steps">
+      <li>Tap the Share button <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M6 11H5v10h14V11h-1"/></svg> in Safari's toolbar.</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b>. The Magen David icon opens the app full screen.</li>
+    </ol>
+    <p class="hint" style="margin:0">In Chrome or another browser on iPhone, the Share button sits next to the address bar; the rest is the same.</p>
+    <div class="actions"><button class="primary" type="submit">OK</button></div>
   </form>
 </dialog>
 <div class="toast" id="toast" role="status"></div>
@@ -824,6 +853,23 @@ async function copyList() {
   for (const s of list) { if (s.date !== last) { out += `\n${dayLong(s.date)}\n`; last = s.date; } out += `${s.time}  ${s.title} (${presNames(s)}) · ${s.room}\n`; }
   try { await navigator.clipboard.writeText(out); toast("Copied your list"); } catch (e) { toast("Copy was blocked by the browser"); }
 }
+
+/* ---------- install / add to home screen ---------- */
+let installEvt = null;
+const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function updateInstallBtn() { $("installbtn").hidden = standalone() || !(installEvt || isIOS()); setHdr(); }
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; updateInstallBtn(); });
+window.addEventListener("appinstalled", () => { installEvt = null; updateInstallBtn(); toast("Installed. Open it from your home screen"); });
+$("installbtn").addEventListener("click", async () => {
+  if (installEvt) {
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) {}
+    installEvt = null; updateInstallBtn();
+  } else if (isIOS()) $("iosdlg").showModal();
+});
+updateInstallBtn();
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 
 /* ---------- boot ---------- */
 async function boot() {

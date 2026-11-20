@@ -175,6 +175,19 @@ dialog::backdrop { background: rgb(10 12 20 / .45); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
 .dlg .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .primary { border: 0; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
+.pill { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; white-space: nowrap; line-height: 1.6; }
+.pill.new { background: var(--accent); color: var(--bg); }
+.pill.moved { background: var(--gold-soft); color: var(--ink); border: 1px solid var(--gold); }
+.chgnote { grid-column: 1 / -1; margin: 2px 0 0; font-size: 13px; font-weight: 500; color: var(--ink); border-left: 3px solid var(--gold); padding-left: 8px; }
+.alertbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--gold); background: var(--gold-soft); border-radius: 12px; font-size: 14px; }
+.alertbar b { font-weight: 600; }
+.alertbar .sp { flex: 1; }
+.wn-h { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 8px; }
+.gone { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; margin-bottom: 6px; font-size: 14px; }
+.gone s { font-weight: 600; }
+.gone .when, .gone .room { font-size: 13px; }
+details.descedits summary { cursor: pointer; color: var(--muted); font-size: 14px; margin: 12px 0 8px; }
+.tab .newct { color: var(--accent); font-weight: 600; }
 .ghost { border: 1px solid var(--line); background: none; border-radius: 10px; padding: 8px 14px; cursor: pointer; }
 </style>
 </head>
@@ -269,6 +282,11 @@ dialog::backdrop { background: rgb(10 12 20 / .45); }
 (() => {
 const LS_KEY = "limmud2026-favs";
 const LS_THEME = "limmud2026-theme";
+const LS_SEEN = "limmud2026-seen-changes";     // newest change entry the person has looked at
+const LS_ALERT = "limmud2026-alerted-changes"; // newest entry whose starred-session alert was dismissed
+const PILL_DAYS = 4;                           // "New" / "Moved" pills show this long after a change
+let CHG = [];                                  // programme change log, newest first
+let pills = new Map(), removedInfo = new Map();
 let DATA = null, S = {}, P = {}, DAYS = [];
 let favs = new Set();
 let me = null;                 // { email, name, share } once signed in
@@ -371,6 +389,88 @@ document.addEventListener("visibilitychange", () => {
 });
 setInterval(() => { if (document.visibilityState === "visible") { lastRefresh = Date.now(); loadFriends().then(rerenderKeepScroll); } }, 180000);
 
+/* ---------- programme changes ---------- */
+const lsGet = (k) => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const atDate = (at) => new Date(String(at).replace(/Z$/, ":00Z"));
+const latestAt = () => (CHG[0] && CHG[0].at) || "";
+const fmtAt = (at) => atDate(at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const slotText = (date, time) => `${dayShort(date).wd} ${+date.slice(8)} Dec, ${time}`;
+const isMove = (c) => c.changes && (c.changes.date || c.changes.time || c.changes.room || c.changes.title || c.changes.presenters);
+function changeText(c) {
+  const ch = c.changes || {}, out = [];
+  if (ch.date || ch.time) {
+    const od = ch.date ? ch.date[0] : c.date, ot = ch.time ? ch.time[0] : c.time;
+    out.push(od === c.date ? `Moved from ${ot} to ${c.time}` : `Moved from ${slotText(od, ot)} to ${slotText(c.date, c.time)}`);
+  }
+  if (ch.room) out.push(`Room: ${ch.room[0]} → ${ch.room[1]}`);
+  if (ch.title) out.push(`Renamed, was “${ch.title[0]}”`);
+  if (ch.presenters) out.push(`Presenters: ${ch.presenters[0].join(", ") || "none"} → ${ch.presenters[1].join(", ") || "none"}`);
+  if (ch.desc && !out.length) out.push("Description updated");
+  return out.join(" · ");
+}
+function indexChanges() {
+  pills = new Map(); removedInfo = new Map();
+  const cutoff = Date.now() - PILL_DAYS * 864e5;
+  for (const e of CHG) {                     // newest first: first hit wins
+    for (const r of e.removed || []) if (!removedInfo.has(r.id)) removedInfo.set(r.id, { ...r, at: e.at });
+    if (atDate(e.at).getTime() < cutoff) continue;
+    for (const a of e.added || []) if (!pills.has(a.id)) pills.set(a.id, { kind: "new", text: "New" });
+    for (const c of e.changed || []) {
+      if (pills.has(c.id) || !isMove(c)) continue;
+      const ch = c.changes;
+      const text = ch.date || ch.time ? `Moved · was ${dayShort(ch.date ? ch.date[0] : c.date).wd} ${ch.time ? ch.time[0] : c.time}`
+        : ch.room ? `Room changed · was ${ch.room[0]}` : ch.title ? "Renamed" : "Presenters changed";
+      pills.set(c.id, { kind: "moved", text });
+    }
+  }
+}
+const unseenCount = () => { const seen = lsGet(LS_SEEN); return CHG.filter(e => e.at > seen).length; };
+function starredAlerts() {
+  const since = lsGet(LS_ALERT), out = [];
+  for (const e of CHG) {
+    if (e.at <= since) break;
+    for (const c of e.changed || []) if (favs.has(c.id) && isMove(c)) out.push(c.id);
+    for (const r of e.removed || []) if (favs.has(r.id) && !S[r.id]) out.push(r.id);
+  }
+  return [...new Set(out)];
+}
+function alertHTML() {
+  const ids = starredAlerts();
+  if (!ids.length) return "";
+  return `<div class="alertbar" role="status"><span><b>${ids.length} of your starred session${ids.length === 1 ? " has" : "s have"} changed</b> since you last looked.</span><span class="sp"></span>
+    <button class="primary" type="button" data-view="whatsnew">See what changed</button><button class="ghost" type="button" id="alertx">Dismiss</button></div>`;
+}
+function goneHTML(r, withUnstar) {
+  return `<div class="gone"><s dir="auto">${esc(r.title)}</s><span class="when">${esc(slotText(r.date, r.time))}</span><span class="room"><i style="--z:${zoneColor(r.room || "")}"></i>${esc(r.room || "")}</span>${withUnstar && favs.has(r.id) ? `<button class="chipbtn" type="button" data-unstar="${r.id}">Unstar</button>` : ""}</div>`;
+}
+function renderWhatsNew(m) {
+  const fetched = DATA.fetched ? fmtAt(DATA.fetched) : "unknown";
+  let html = `<div class="viewhead"><div><h2>What's new</h2><p>Programme changes since 18 Nov, newest first · last change picked up ${esc(fetched)}</p></div></div>`;
+  if (!CHG.length) html += `<div class="empty"><p>No programme changes yet. The programme is checked every night.</p></div>`;
+  for (const e of CHG) {
+    const added = (e.added || []).filter(a => S[a.id]);
+    const removed = e.removed || [];
+    const moved = (e.changed || []).filter(c => S[c.id] && isMove(c));
+    const descOnly = (e.changed || []).filter(c => S[c.id] && !isMove(c));
+    const mine = [...moved.filter(c => favs.has(c.id)).map(c => ({ c })), ...removed.filter(r => favs.has(r.id) && !S[r.id]).map(r => ({ r }))];
+    html += `<h3 class="daybreak">${esc(fmtAt(e.at))}</h3>`;
+    if (mine.length) {
+      html += `<div class="wn-h">Your starred sessions</div>` + mine.map(x => x.c
+        ? `<div class="cards">${cardHTML(S[x.c.id], { showWhen: true, note: changeText(x.c) })}</div>`
+        : goneHTML(x.r, true)).join("");
+    }
+    const movedRest = moved.filter(c => !favs.has(c.id)), removedRest = removed.filter(r => !(favs.has(r.id) && !S[r.id]));
+    if (added.length) html += `<div class="wn-h">New sessions (${added.length})</div><div class="cards">${added.map(a => cardHTML(S[a.id], { showWhen: true })).join("")}</div>`;
+    if (removedRest.length) html += `<div class="wn-h">Cancelled or removed (${removedRest.length})</div>` + removedRest.map(r => goneHTML(r, false)).join("");
+    if (movedRest.length) html += `<div class="wn-h">Changed (${movedRest.length})</div><div class="cards">${movedRest.map(c => cardHTML(S[c.id], { showWhen: true, note: changeText(c) })).join("")}</div>`;
+    if (descOnly.length) html += `<details class="descedits"><summary>Description edits (${descOnly.length})</summary><div class="cards">${descOnly.map(c => cardHTML(S[c.id], { showWhen: true })).join("")}</div></details>`;
+  }
+  m.innerHTML = html;
+  if (latestAt()) { lsSet(LS_SEEN, latestAt()); lsSet(LS_ALERT, latestAt()); }
+  renderTabs();
+}
+
 function toggleFav(id) {
   if (favs.has(id)) favs.delete(id); else favs.add(id);
   saveLocal(); setPending(true); scheduleSave();
@@ -450,7 +550,8 @@ function cardHTML(s, opts = {}) {
   return `<article class="card${f ? " fav" : ""}" data-s="${s.id}" id="s-${s.id}">
     <h3 dir="auto"><a href="${esc(s.url)}" target="_blank" rel="noopener">${hi(s.title, state.q)}</a></h3>
     <button class="star" type="button" data-star="${s.id}" aria-pressed="${f}" aria-label="${f ? "Remove from" : "Add to"} favourites: ${esc(s.title)}">${starSvg}</button>
-    <div class="meta">${when}<span class="room"><i style="--z:${zoneColor(s.room)}"></i>${hi(s.room, state.q)}</span>${pres}${goingHTML(s.id)}<a class="gcal" href="${gcalUrl(s)}" target="_blank" rel="noopener" title="Opens Google Calendar with this session filled in">+ Google Calendar</a></div>
+    ${opts.note ? `<p class="chgnote">${esc(opts.note)}</p>` : ""}
+    <div class="meta">${pills.has(s.id) ? `<span class="pill ${pills.get(s.id).kind}">${esc(pills.get(s.id).text)}</span>` : ""}${when}<span class="room"><i style="--z:${zoneColor(s.room)}"></i>${hi(s.room, state.q)}</span>${pres}${goingHTML(s.id)}<a class="gcal" href="${gcalUrl(s)}" target="_blank" rel="noopener" title="Opens Google Calendar with this session filled in">+ Google Calendar</a></div>
     <p class="desc" dir="auto">${hi(s.desc, state.q)}</p>
   </article>`;
 }
@@ -487,7 +588,9 @@ function renderTabs() {
     const v = "day-" + d.date.slice(8);
     html += `<button class="tab" role="tab" type="button" data-view="${v}" aria-selected="${state.view === v && !state.q}"><b>${dayShort(d.date).wd} ${d.date.slice(8)}</b><small>${counts[d.date] ? `<span class="favct">★ ${counts[d.date]}</span>` : "Dec"}</small></button>`;
   }
-  html += `<button class="tab sep" role="tab" type="button" data-view="mine" aria-selected="${state.view === "mine" && !state.q}"><b>My Limmud</b><small class="favct">${favs.size} starred</small></button>`;
+  const nStar = [...favs].filter(id => S[id]).length, unseen = unseenCount();
+  html += `<button class="tab sep" role="tab" type="button" data-view="mine" aria-selected="${state.view === "mine" && !state.q}"><b>My Limmud</b><small class="favct">${nStar} starred</small></button>`;
+  html += `<button class="tab" role="tab" type="button" data-view="whatsnew" aria-selected="${state.view === "whatsnew" && !state.q}"><b>What's new</b><small>${unseen ? `<span class="newct">${unseen} update${unseen === 1 ? "" : "s"}</span>` : "changes"}</small></button>`;
   if (me) html += `<button class="tab" role="tab" type="button" data-view="friends" aria-selected="${state.view === "friends" && !state.q}"><b>Friends</b><small>${friends.length} sharing</small></button>`;
   html += `<button class="tab" role="tab" type="button" data-view="presenters" aria-selected="${state.view === "presenters" && !state.q}"><b>Presenters</b><small>${Object.keys(P).length}</small></button>`;
   $("tabs").innerHTML = html;
@@ -498,8 +601,10 @@ function render() {
   renderTabs();
   const m = $("main");
   if (state.q) return renderSearch(m);
-  if (state.view === "mine") return renderMine(m);
-  if (state.view === "friends") return renderFriends(m);
+  if (state.view === "whatsnew") return renderWhatsNew(m);
+  const alert = alertHTML();
+  if (state.view === "mine") { renderMine(m); if (alert) m.insertAdjacentHTML("afterbegin", alert); return; }
+  if (state.view === "friends") { renderFriends(m); if (alert) m.insertAdjacentHTML("afterbegin", alert); return; }
   if (state.view === "presenters") return renderPresenters(m);
   const date = "2026-12-" + state.view.slice(4);
   const day = DATA.sessions.filter(s => s.date === date);
@@ -507,7 +612,7 @@ function render() {
   if (state.onlyFav) list = list.filter(s => favs.has(s.id));
   if (state.onlyFriends) list = list.filter(s => friendsBy.has(s.id));
   const nf = day.filter(s => favs.has(s.id)).length, nfr = day.filter(s => friendsBy.has(s.id)).length;
-  m.innerHTML = `<div class="viewhead"><div><h2>${dayLong(date)}</h2><p>${day.length} sessions · ${new Set(day.map(s => s.time)).size} timeslots · times are UK time</p></div>
+  m.innerHTML = alert + `<div class="viewhead"><div><h2>${dayLong(date)}</h2><p>${day.length} sessions · ${new Set(day.map(s => s.time)).size} timeslots · times are UK time</p></div>
     <div class="tools"><button class="chipbtn" type="button" id="onlyfav" aria-pressed="${state.onlyFav}">★ Starred only (${nf})</button>${me && friends.length ? `<button class="chipbtn friends" type="button" id="onlyfriends" aria-pressed="${state.onlyFriends}">Friends' picks (${nfr})</button>` : ""}</div></div>
     ${list.length ? slotsHTML(groupBySlot(list), { markClash: true }) : emptyHTML("Nothing here with these filters.")}`;
 }
@@ -515,8 +620,11 @@ function renderMine(m) {
   const list = DATA.sessions.filter(s => favs.has(s.id));
   const slots = groupBySlot(list);
   const clashes = slots.filter(g => g.items.length > 1).length;
+  const gone = [...favs].filter(id => !S[id]).map(id => removedInfo.get(id) || { id, title: "A session that is no longer in the programme", date: "2026-12-25", time: "?", room: "" });
+  const goneBlock = gone.length ? `<div class="wn-h">Cancelled or removed (${gone.length})</div>${gone.map(r => goneHTML(r, true)).join("")}` : "";
   m.innerHTML = `<div class="viewhead"><div><h2>My Limmud</h2><p>${list.length} starred session${list.length === 1 ? "" : "s"}${clashes ? ` · <span style="color:var(--clash);font-weight:600">${clashes} clash${clashes > 1 ? "es" : ""}</span>` : ""}</p></div>
     <div class="tools">${list.length ? '<button class="chipbtn" type="button" id="dlics">Download calendar (.ics)</button><button class="chipbtn" type="button" id="copylist">Copy as text</button>' : ""}</div></div>
+    ${goneBlock}
     ${list.length ? '<p style="color:var(--muted);font-size:13px;margin:6px 0 0">Calendar entries run 60 minutes, or less if the next timeslot starts sooner.</p>' + slotsHTML(slots, { showDayBreaks: true, markClash: true }) : emptyHTML("Tap the Magen David on any session to add it here.")}`;
 }
 function renderFriends(m) {
@@ -590,7 +698,7 @@ function refreshFavUI(changedId) {
 
 /* ---------- routing ---------- */
 function defaultDayView() { const n = londonNow(); const d = DAYS.find(x => x.date === n.date); return "day-" + (d ? d.date : DAYS[0].date).slice(8); }
-const validView = (v) => ["mine", "presenters", "friends"].includes(v) || DAYS.some(d => "day-" + d.date.slice(8) === v);
+const validView = (v) => ["mine", "presenters", "friends", "whatsnew"].includes(v) || DAYS.some(d => "day-" + d.date.slice(8) === v);
 function route() {
   const h = decodeURIComponent(location.hash.slice(1));
   if (h.startsWith("presenter-") && P[h.slice(10)]) {
@@ -686,6 +794,8 @@ document.addEventListener("click", (e) => {
   if (e.target.id === "onlyfriends") { state.onlyFriends = !state.onlyFriends; render(); return; }
   if (e.target.id === "copylist") { copyList(); return; }
   if (e.target.id === "dlics") { downloadIcs(); return; }
+  if (e.target.id === "alertx") { lsSet(LS_ALERT, latestAt()); render(); return; }
+  const un = e.target.closest("[data-unstar]"); if (un) { favs.delete(un.dataset.unstar); saveLocal(); setPending(true); scheduleSave(); render(); return; }
 });
 $("scrim").addEventListener("click", closeP);
 $("dr-close").addEventListener("click", closeP);
@@ -730,9 +840,11 @@ async function boot() {
     if (notInvited) openJoin(jr && !jr.ok ? joinError(jr.e) : "");
     return ok;
   });
+  const chgPromise = fetch("changes.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : { entries: [] }).catch(() => ({ entries: [] }));
   try { const r = await fetch("data.json", { cache: "no-cache" }); if (!r.ok) throw new Error(r.status); DATA = await r.json(); }
   catch (e) { $("main").innerHTML = '<div class="loading">The programme data could not be loaded. Reload the page to try again.</div>'; return; }
   DAYS = DATA.days; P = DATA.presenters;
+  CHG = ((await chgPromise).entries || []).filter(e => e && e.at).sort((x, y) => (x.at < y.at ? 1 : -1)); indexChanges();
   for (const s of DATA.sessions) S[s.id] = s;
   const starts = {};
   for (const s of DATA.sessions) { s._start = +s.time.slice(0, 2) * 60 + +s.time.slice(3); (starts[s.date] ||= new Set()).add(s._start); }
@@ -744,7 +856,7 @@ async function boot() {
   $("foot").innerHTML = `Programme from <a href="https://events.limmud.org/limmud-festival-2026/programme/" target="_blank" rel="noopener">events.limmud.org</a>, refreshed nightly (last change picked up: ${esc(fetched)}). Session titles link to the official page. Press / to search.`;
   setHdr(); route(); setHdr();
   if (await mePromise) { await loadFriends(); lastRefresh = Date.now(); }
-  favs = new Set([...favs].filter(id => S[id]));
+  // stars on sessions that disappeared are kept, so My Limmud can show them as cancelled
   rerenderKeepScroll();
 }
 boot();

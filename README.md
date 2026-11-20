@@ -15,6 +15,7 @@ functions/api/join.js    POST the invite code to become a member (invite mode)
 functions/api/_middleware.js + functions/_lib/access.js
                          every /api call must carry a valid Cloudflare Access login (JWT verified)
 scripts/scrape.py        downloads the programme → public/data.json (only rewrites on real changes)
+                         and logs what changed → public/changes.json (shown in the "What's new" tab)
 .github/workflows/refresh-programme.yml   runs the scraper daily at 03:17 UTC
 ```
 

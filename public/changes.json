@@ -1,0 +1,39 @@
+{
+ "entries": [
+  {
+   "at": "2026-11-19T11:37Z",
+   "added": [
+    {
+     "id": "17974",
+     "date": "2026-12-27",
+     "time": "19:00",
+     "title": "Quilting Jewish London's Future (2 of 2)",
+     "room": "Yellow 24"
+    },
+    {
+     "id": "17976",
+     "date": "2026-12-28",
+     "time": "20:15",
+     "title": "What's new in the collection at Manchester Jewish Museum?",
+     "room": "Orange 11"
+    },
+    {
+     "id": "17975",
+     "date": "2026-12-29",
+     "time": "09:00",
+     "title": "What Can European Jewish Communities Learn From one another?",
+     "room": "Yellow 21"
+    },
+    {
+     "id": "17973",
+     "date": "2026-12-29",
+     "time": "17:45",
+     "title": "Jews standing up for Palestinian rights: Na’amod’s approach",
+     "room": "Red 9"
+    }
+   ],
+   "removed": [],
+   "changed": []
+  }
+ ]
+}

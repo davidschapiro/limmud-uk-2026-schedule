@@ -9,7 +9,9 @@ Sources (all public pages):
   - all presenters:        /programme/presenters/all/      -> bios and session lists
 
 The file is only rewritten when the programme content actually changed, so the
-nightly GitHub Action doesn't create empty commits.
+nightly GitHub Action doesn't create empty commits. Each change is also logged in
+public/changes.json (newest first): sessions added, removed, and changed
+(day, time, room, title, presenters; description edits only as a flag).
 """
 import json
 import re
@@ -26,6 +28,8 @@ FESTIVAL = "limmud-festival-2026"
 DATES = [f"2026-12-{d}" for d in range(25, 31)]
 UA = "limmud-programme-browser/1.0 (personal festival planner; nightly refresh)"
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "public" / "data.json"
+CHANGES = OUT.parent / "changes.json"
+MAX_ENTRIES = 300
 
 
 def get(path: str) -> BeautifulSoup:
@@ -95,8 +99,45 @@ def scrape() -> dict:
     return {"days": days, "sessions": [sessions[i] for i in order], "presenters": presenters}
 
 
+def diff(old: dict, new: dict) -> dict | None:
+    """What changed between two programme snapshots, or None if no session changed."""
+    O = {s["id"]: s for s in old["sessions"]}
+    N = {s["id"]: s for s in new["sessions"]}
+    names = lambda data, s: [data["presenters"].get(p, {}).get("name", p) for p in s["presenters"]]
+    brief = lambda s: {"id": s["id"], "date": s["date"], "time": s["time"], "title": s["title"], "room": s["room"]}
+    key = lambda x: (x["date"], x["time"], x["title"])
+    added = sorted((brief(N[i]) for i in N if i not in O), key=key)
+    removed = sorted((brief(O[i]) | {"presenters": names(old, O[i])} for i in O if i not in N), key=key)
+    changed = []
+    for i in N:
+        if i not in O:
+            continue
+        o, n, ch = O[i], N[i], {}
+        for f in ("date", "time", "room", "title"):
+            if o[f] != n[f]:
+                ch[f] = [o[f], n[f]]
+        if names(old, o) != names(new, n):
+            ch["presenters"] = [names(old, o), names(new, n)]
+        if o["desc"] != n["desc"]:
+            ch["desc"] = True
+        if ch:
+            changed.append(brief(n) | {"changes": ch})
+    changed.sort(key=key)
+    if not (added or removed or changed):
+        return None
+    return {"added": added, "removed": removed, "changed": changed}
+
+
+def log_change(entry: dict, at: str) -> None:
+    log = json.loads(CHANGES.read_text(encoding="utf-8")) if CHANGES.exists() else {"entries": []}
+    log["entries"].insert(0, {"at": at, **entry})
+    log["entries"] = log["entries"][:MAX_ENTRIES]
+    CHANGES.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
 def main() -> None:
     new = scrape()
+    old = None
     if OUT.exists():
         old = json.loads(OUT.read_text(encoding="utf-8"))
         old.pop("fetched", None)
@@ -104,6 +145,11 @@ def main() -> None:
             print("programme unchanged")
             return
     new["fetched"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+    if old is not None:
+        entry = diff(old, new)
+        if entry:
+            log_change(entry, new["fetched"])
+            print(f"logged: {len(entry['added'])} added, {len(entry['removed'])} removed, {len(entry['changed'])} changed")
     OUT.write_text(json.dumps(new, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {OUT}: {len(new['sessions'])} sessions, {len(new['presenters'])} presenters")
 

@@ -25,12 +25,12 @@ jobs:
       - run: python scripts/scrape.py
       - name: Commit if the programme changed
         run: |
-          if git diff --quiet -- public/data.json; then
+          if git diff --quiet -- public/data.json && [ -z "$(git status --porcelain -- public/changes.json)" ]; then
             echo "No changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
-          git add public/data.json
+          git add public/data.json public/changes.json
           git commit -m "Refresh programme from events.limmud.org"
           git push

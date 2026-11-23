@@ -1,6 +1,23 @@
 {
  "entries": [
   {
+   "at": "2026-11-23T12:33Z",
+   "added": [],
+   "removed": [
+    {
+     "id": "17314",
+     "date": "2026-12-29",
+     "time": "09:00",
+     "title": "Disability and inclusion",
+     "room": "Red 3",
+     "presenters": [
+      "Joshua Hepple"
+     ]
+    }
+   ],
+   "changed": []
+  },
+  {
    "at": "2026-11-20T11:35Z",
    "added": [],
    "removed": [],

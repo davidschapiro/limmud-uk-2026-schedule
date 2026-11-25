@@ -1,6 +1,73 @@
 {
  "entries": [
   {
+   "at": "2026-11-25T12:51Z",
+   "added": [],
+   "removed": [],
+   "changed": [
+    {
+     "id": "17448",
+     "date": "2026-12-27",
+     "time": "10:15",
+     "title": "Jewish students, in their own words: campus, community and everything in between",
+     "room": "Red 5",
+     "changes": {
+      "presenters": [
+       [
+        "Levona Zarum"
+       ],
+       [
+        "Levona Zarum",
+        "Ari Joseph",
+        "Sapira Zarum"
+       ]
+      ]
+     }
+    },
+    {
+     "id": "17536",
+     "date": "2026-12-28",
+     "time": "15:15",
+     "title": "On the frontlines of global Jewish life: Jewish Agency shlichim on leadership, crisis, and connection",
+     "room": "Orange 14",
+     "changes": {
+      "presenters": [
+       [
+        "Amit Georgi",
+        "Adina Fagelston",
+        "Eliana Pushett",
+        "Sam Robinson",
+        "Vadim Blumin"
+       ],
+       [
+        "Amit Georgi",
+        "Adina Fagelston",
+        "Eliana Pushett",
+        "Sam Robinson",
+        "Andres Tassara",
+        "Vadim Blumin",
+        "Omer Zonenshine",
+        "Eden Berman"
+       ]
+      ]
+     }
+    },
+    {
+     "id": "17676",
+     "date": "2026-12-28",
+     "time": "15:15",
+     "title": "The royal mohel: Jacob Snowman and the rise of medical circumcision",
+     "room": "Red 1",
+     "changes": {
+      "room": [
+       "Orange 11",
+       "Red 1"
+      ]
+     }
+    }
+   ]
+  },
+  {
    "at": "2026-11-23T12:33Z",
    "added": [],
    "removed": [

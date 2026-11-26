@@ -175,6 +175,7 @@ dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--s
 dialog::backdrop { background: rgb(10 12 20 / .45); }
 .dlg { padding: 18px; display: grid; gap: 14px; }
 .dlg h2 { font-family: var(--font-display); font-weight: 800; font-size: 20px; margin: 0; }
+.dlg h2:focus { outline: none; }
 .dlg label.f { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .dlg input[type="text"] { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
 .dlg .row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
@@ -266,7 +267,7 @@ details.descedits summary { cursor: pointer; color: var(--muted); font-size: 14p
 
 <dialog id="settings" aria-labelledby="set-title">
   <form class="dlg" id="setform" method="dialog">
-    <h2 id="set-title">Settings</h2>
+    <h2 id="set-title" tabindex="-1" autofocus>Settings</h2>
     <p class="hint" id="set-who" style="margin:0"></p>
     <label class="f" for="set-name">Name your friends see
       <input id="set-name" type="text" maxlength="40" autocomplete="nickname">

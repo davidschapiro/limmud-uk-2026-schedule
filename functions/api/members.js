@@ -1,7 +1,7 @@
 import { json } from "../_lib/http.js";
 import { inviteMode, isOwner, ownerEmails } from "../_lib/members.js";
 
-// GET /api/members — who is in the group. Only for OWNER_EMAILS; everyone else gets 403.
+// GET /api/members — who is in the group. Only for OWNERS_EMAILS; everyone else gets 403.
 // A person counts if they joined with the invite code ("member:<email>"), have a saved
 // record ("user:<email>"), or are an owner. Emails are shown here because only owners see this.
 async function listKeys(env, prefix) {

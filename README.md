@@ -58,7 +58,7 @@ Pages project → Settings → Variables and Secrets (Production, and Preview if
 | `ACCESS_TEAM_DOMAIN` | `<team>.cloudflareaccess.com` |
 | `ACCESS_AUD` | the AUD tag from step 3 |
 | `INVITE_CODE` | *(optional)* turns on invite mode, e.g. `sufganiya`; not case-sensitive |
-| `OWNER_EMAILS` | *(optional)* comma-separated addresses that are always members |
+| `OWNERS_EMAILS` | *(optional)* comma-separated addresses that are always members |
 
 Never set `DEV_EMAIL` here; it disables the login check and exists only for local development.
 
@@ -70,7 +70,7 @@ Without the link they see a "Join the group" box where they can type the code. 1
 
 - People who had saved stars before invite mode was switched on stay members automatically.
 - Link leaked? Change `INVITE_CODE` and redeploy; existing members stay in.
-- See who has joined: Settings → **Members**, visible only to addresses in `OWNER_EMAILS` (name, email, join date, number of stars, whether they share). Set `OWNER_EMAILS` to your own address to get it.
+- See who has joined: Settings → **Members**, visible only to addresses in `OWNERS_EMAILS` (name, email, join date, number of stars, whether they share). Set `OWNERS_EMAILS` to your own address to get it.
 - Remove someone: delete their `member:<email>` and `user:<email>` keys in the KV namespace. With the Access policy on "Everyone" they can still log in and browse, but can't see the group's stars.
 - The free Zero Trust plan allows 50 users; everyone who completes a login takes a seat (Zero Trust → Settings → Account → seats).
 

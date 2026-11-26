@@ -1,6 +1,108 @@
 {
  "entries": [
   {
+   "at": "2026-11-26T12:29Z",
+   "added": [
+    {
+     "id": "17977",
+     "date": "2026-12-26",
+     "time": "11:45",
+     "title": "Beyond the ritual",
+     "room": "Red 1"
+    },
+    {
+     "id": "17978",
+     "date": "2026-12-26",
+     "time": "11:45",
+     "title": "One people, many paths",
+     "room": "Red 9"
+    },
+    {
+     "id": "17979",
+     "date": "2026-12-26",
+     "time": "11:45",
+     "title": "The Torah is never finished",
+     "room": "Orange 14"
+    }
+   ],
+   "removed": [],
+   "changed": [
+    {
+     "id": "17853",
+     "date": "2026-12-27",
+     "time": "09:00",
+     "title": "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (1 of 4)",
+     "room": "Red 9",
+     "changes": {
+      "title": [
+       "Darchei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (1 of 4)",
+       "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (1 of 4)"
+      ]
+     }
+    },
+    {
+     "id": "17762",
+     "date": "2026-12-27",
+     "time": "14:00",
+     "title": "When we deeply disagree: navigating difficult conversations when the stakes are high",
+     "room": "Red 7",
+     "changes": {
+      "date": [
+       "2026-12-28",
+       "2026-12-27"
+      ],
+      "time": [
+       "11:30",
+       "14:00"
+      ],
+      "room": [
+       "Red 2",
+       "Red 7"
+      ]
+     }
+    },
+    {
+     "id": "17850",
+     "date": "2026-12-28",
+     "time": "09:00",
+     "title": "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (2 of 4)",
+     "room": "Red 8",
+     "changes": {
+      "title": [
+       "Darchei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (2 of 4)",
+       "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (2 of 4)"
+      ]
+     }
+    },
+    {
+     "id": "17851",
+     "date": "2026-12-29",
+     "time": "09:00",
+     "title": "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (3 of 4)",
+     "room": "Red 9",
+     "changes": {
+      "title": [
+       "Darchei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (3 of 4)",
+       "Darkhei shalom: balancing personal religious observance and relationship with others · Limmud's Beit Midrash (3 of 4)"
+      ]
+     }
+    },
+    {
+     "id": "17297",
+     "date": "2026-12-29",
+     "time": "21:30",
+     "title": "Darkhei shalom – ways of peace: the path to building community",
+     "room": "Red 4",
+     "changes": {
+      "title": [
+       "Darchei shalom – ways of peace: the path to building community",
+       "Darkhei shalom – ways of peace: the path to building community"
+      ]
+     }
+    }
+   ]
+  },
+  {
    "at": "2026-11-25T12:51Z",
    "added": [],
    "removed": [],

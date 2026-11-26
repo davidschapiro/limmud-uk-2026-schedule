@@ -183,6 +183,14 @@ dialog::backdrop { background: rgb(10 12 20 / .45); }
 .seg button { border: 0; background: var(--bg); padding: 6px 12px; cursor: pointer; font-size: 13px; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
 .dlg .actions { display: flex; justify-content: flex-end; gap: 8px; }
+.members { display: grid; gap: 6px; }
+.members[hidden] { display: none; }
+.members h3 { font-size: 14px; margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+.members h3 span { font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.memlist { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.memlist li { padding: 7px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; display: grid; gap: 1px; }
+.memlist li:last-child { border-bottom: 0; }
+.memlist .sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .primary { border: 0; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
 .brand-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .installbtn { color: var(--accent); border-color: var(--accent); font-weight: 600; }
@@ -272,6 +280,11 @@ details.descedits summary { cursor: pointer; color: var(--muted); font-size: 14p
         <button type="button" data-theme-opt="dark">Dark</button>
       </div>
     </div>
+    <section class="members" id="set-members" hidden>
+      <h3>Members <span id="mem-count"></span></h3>
+      <ul class="memlist" id="mem-list"></ul>
+      <p class="hint" style="margin:0">Only owners (OWNER_EMAILS) see this list.</p>
+    </section>
     <div class="actions">
       <button class="ghost" type="button" id="set-cancel">Cancel</button>
       <button class="primary" type="submit" id="set-save">Save</button>
@@ -386,7 +399,7 @@ window.addEventListener("online", () => { if (dirty) flushSave(); });
 async function loadMe() {
   try {
     const d = await api("GET", "/api/me");
-    me = { email: d.email, name: d.name, share: d.share };
+    me = { email: d.email, name: d.name, share: d.share, owner: !!d.owner };
     sessionExpired = false;
     const server = new Set((d.ids || []).map(String));
     if (isPending() || (!server.size && favs.size)) scheduleSave();   // local changes the server hasn't seen: upload them
@@ -759,7 +772,30 @@ function openSettings() {
   $("set-name").value = me ? me.name : ""; $("set-name").disabled = !me;
   $("set-share").checked = me ? me.share : false; $("set-share").disabled = !me;
   markTheme();
+  $("set-members").hidden = !(me && me.owner);
+  if (me && me.owner) loadMembers();
   $("settings").showModal();
+}
+const shortDate = (iso) => { try { return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); } catch (e) { return ""; } };
+async function loadMembers() {
+  const list = $("mem-list");
+  $("mem-count").textContent = "";
+  list.innerHTML = '<li class="sub">Loading…</li>';
+  try {
+    const d = await api("GET", "/api/members");
+    const ms = d.members || [];
+    $("mem-count").textContent = `${ms.length} ${ms.length === 1 ? "person" : "people"}`;
+    list.innerHTML = ms.map(m => {
+      const bits = [];
+      if (m.owner) bits.push("owner");
+      if (m.joinedAt) bits.push(`joined ${shortDate(m.joinedAt)}`);
+      bits.push(m.stars ? `${m.stars} ★` : "no stars yet");
+      if (m.share === false) bits.push("not sharing");
+      return `<li><span>${esc(m.name || m.email.split("@")[0])}</span><span class="sub">${esc(m.email)} · ${esc(bits.join(" · "))}</span></li>`;
+    }).join("") || '<li class="sub">Nobody has joined yet.</li>';
+  } catch (e) {
+    list.innerHTML = `<li class="sub">${e.expired ? "Your login expired: reload the page." : "Couldn't load the list. Check your connection."}</li>`;
+  }
 }
 function markTheme() { document.querySelectorAll("[data-theme-opt]").forEach(b => b.setAttribute("aria-pressed", b.dataset.themeOpt === pendingTheme)); }
 $("set-theme").addEventListener("click", (e) => { const b = e.target.closest("[data-theme-opt]"); if (!b) return; pendingTheme = b.dataset.themeOpt; applyTheme(pendingTheme); markTheme(); });

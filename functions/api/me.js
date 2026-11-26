@@ -1,4 +1,5 @@
 import { json } from "../_lib/http.js";
+import { isOwner } from "../_lib/members.js";
 
 // KV layout: one key per person, "user:<email>" -> { name, ids: [sessionId...], share, updatedAt }
 const keyFor = (email) => `user:${email}`;
@@ -16,7 +17,7 @@ async function load(env, email) {
 
 export async function onRequestGet({ env, data }) {
   const rec = await load(env, data.email);
-  return json({ email: data.email, ...rec });
+  return json({ email: data.email, ...rec, owner: isOwner(env, data.email) });
 }
 
 export async function onRequestPut({ request, env, data }) {
@@ -35,5 +36,5 @@ export async function onRequestPut({ request, env, data }) {
   if (body.share !== undefined) rec.share = !!body.share;
   rec.updatedAt = new Date().toISOString();
   await env.FAVS.put(keyFor(data.email), JSON.stringify(rec));
-  return json({ email: data.email, ...rec });
+  return json({ email: data.email, ...rec, owner: isOwner(env, data.email) });
 }

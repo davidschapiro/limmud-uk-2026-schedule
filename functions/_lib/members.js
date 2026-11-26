@@ -11,10 +11,15 @@
 
 export const inviteMode = (env) => !!(env.INVITE_CODE && String(env.INVITE_CODE).trim());
 
+export const ownerEmails = (env) =>
+  String(env.OWNER_EMAILS || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+
+// Owners (OWNER_EMAILS) may also see the member list (GET /api/members).
+export const isOwner = (env, email) => ownerEmails(env).includes(email);
+
 export async function isMember(env, email) {
   if (!inviteMode(env)) return true;
-  const owners = String(env.OWNER_EMAILS || "").toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
-  if (owners.includes(email)) return true;
+  if (isOwner(env, email)) return true;
   const [m, u] = await Promise.all([env.FAVS.get(`member:${email}`), env.FAVS.get(`user:${email}`)]);
   return m !== null || u !== null;
 }

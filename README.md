@@ -12,6 +12,7 @@ public/                  the app (index.html) and the programme (data.json)
 functions/api/me.js      GET/PUT your own stars, display name, sharing switch
 functions/api/friends.js GET everyone else's shared stars (names only, never emails)
 functions/api/join.js    POST the invite code to become a member (invite mode)
+functions/api/members.js GET the member list (owners only, shown in Settings → Members)
 functions/api/_middleware.js + functions/_lib/access.js
                          every /api call must carry a valid Cloudflare Access login (JWT verified)
 scripts/scrape.py        downloads the programme → public/data.json (only rewrites on real changes)
@@ -69,6 +70,7 @@ Without the link they see a "Join the group" box where they can type the code. 1
 
 - People who had saved stars before invite mode was switched on stay members automatically.
 - Link leaked? Change `INVITE_CODE` and redeploy; existing members stay in.
+- See who has joined: Settings → **Members**, visible only to addresses in `OWNER_EMAILS` (name, email, join date, number of stars, whether they share). Set `OWNER_EMAILS` to your own address to get it.
 - Remove someone: delete their `member:<email>` and `user:<email>` keys in the KV namespace. With the Access policy on "Everyone" they can still log in and browse, but can't see the group's stars.
 - The free Zero Trust plan allows 50 users; everyone who completes a login takes a seat (Zero Trust → Settings → Account → seats).
 
